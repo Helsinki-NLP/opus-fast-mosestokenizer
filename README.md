@@ -1,5 +1,15 @@
 **opus-fast-mosestokenizer** is a fork of [fast-mosestokenizer](https://github.com/mingruimingrui/fast-mosestokenizer)
 created to ensure compability of the package with current Python environments.
+Fix Compilation problem of absl.
+
+```
+git clone https://github.com/convergence-lab/opus-fast-mosestokenizer/tree/master
+cd opus-fast-mosestokenizer
+make build
+make download-build-static-deps
+pip install "pybind11[global]
+python setup.py build_ext install
+```
 
 **fast-mosestokenizer** is a C++ implementation of the moses tokenizer
 which is a favourite among the folks in NLP research.
