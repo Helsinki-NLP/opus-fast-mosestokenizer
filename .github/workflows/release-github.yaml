@@ -24,7 +24,7 @@ jobs:
         path: dist/*.tar.gz
 
   build-wheels-macos:
-    runs-on: macos-10.15
+    runs-on: macos-11
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: "true"
       MINICONDA_FILENAME: Miniconda3-latest-MacOSX-x86_64.sh
