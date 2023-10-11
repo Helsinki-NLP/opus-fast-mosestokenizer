@@ -49,6 +49,7 @@ jobs:
         conda create -n meson python=3.8
         conda activate meson
         conda install -y meson
+        brew install pcre
         make download-build-static-deps
         conda deactivate
 
