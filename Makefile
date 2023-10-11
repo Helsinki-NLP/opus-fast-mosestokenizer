@@ -31,9 +31,9 @@ download-build-static-deps:
 	@mkdir -p deps
 
 	@echo "Downloading pybind"
-	curl -L -o deps/pybind-v2.5.0.tar.gz \
-		https://github.com/pybind/pybind11/archive/v2.5.0.tar.gz
-	tar -C deps -xf deps/pybind-v2.5.0.tar.gz
+	curl -L -o deps/pybind-v2.10.3.tar.gz \
+		https://github.com/pybind/pybind11/archive/v2.10.3.tar.gz
+	tar -C deps -xf deps/pybind-v2.10.3.tar.gz
 
 	@echo "Downloading and building re2"
 	curl -L -o deps/re2-2020-06-01.tar.gz \
