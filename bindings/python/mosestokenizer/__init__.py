@@ -1,4 +1,6 @@
 import os
+import sys
+from ctypes import cdll
 from typing import List, Optional
 
 __all__ = ['MosesTokenizer']
@@ -11,6 +13,11 @@ os.environ['TOKENIZER_SHARED_DIR'] = os.environ.get(
     'TOKENIZER_SHARED_DIR',
     os.path.join(_THIS_DIR, 'share')
 )
+
+if os.path.isfile(os.path.join(_TOKENIZER_LIB_DIR, 'libmosestokenizer-dev.so')):
+    # hack to find the required shared lib in _mosestokenizer import
+    # without adding the directory to LD_LIBARARY_PATH
+    cdll.LoadLibrary(os.path.join(_TOKENIZER_LIB_DIR, 'libmosestokenizer-dev.so'))
 
 try:
     from mosestokenizer.lib import _mosestokenizer
