@@ -28,10 +28,10 @@ jobs:
         path: dist/*.tar.gz
 
   build-wheels-macos:
-    runs-on: macos-13
+    runs-on: macos-latest
     env:
       ACTIONS_ALLOW_UNSECURE_COMMANDS: "true"
-      MINICONDA_FILENAME: Miniconda3-latest-MacOSX-x86_64.sh
+      MINICONDA_FILENAME: Miniconda3-latest-MacOSX-arm64.sh
       CC: clang
       CXX: clang++
 
@@ -89,7 +89,7 @@ jobs:
     - name: Build package and upload from docker
       run: |
         docker run --rm -v "${PWD}:/opt/fast-mosestokenizer" \
-          ubuntu:22.04 /bin/bash /opt/fast-mosestokenizer/build-release-linux.sh
+          ubuntu:24.04 /bin/bash /opt/fast-mosestokenizer/build-release-linux.sh
 
     - uses: actions/upload-artifact@v4
       with:
