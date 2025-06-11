@@ -60,6 +60,7 @@ jobs:
         conda activate meson
         conda install -y meson
         brew install pcre
+        python -m pip install packaging
         make download-build-static-deps
         conda deactivate
 

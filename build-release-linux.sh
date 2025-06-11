@@ -25,6 +25,7 @@ eval "$(conda shell.bash hook)"
 conda create -n meson -y python=3.9
 conda activate meson
 conda install -y meson
+python -m pip install packaging
 make download-build-static-deps
 conda deactivate
 
