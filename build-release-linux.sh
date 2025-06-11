@@ -22,14 +22,14 @@ export PATH=$HOME/miniconda3/bin:$PATH
 eval "$(conda shell.bash hook)"
 
 # Build dependencies as static libraries
-conda create -n meson -y python=3.6
+conda create -n meson -y python=3.9
 conda activate meson
 conda install -y meson
 make download-build-static-deps
 conda deactivate
 
 # Build and upload packages
-for VERSION in 3.8 3.9 3.10 3.11 3.12 3.13; do
+for VERSION in 3.9 3.10 3.11 3.12 3.13; do
     conda create -n py$VERSION -y python=$VERSION
     conda activate py$VERSION
     STATIC_LIBS=1 python setup.py build_ext bdist_wheel \
