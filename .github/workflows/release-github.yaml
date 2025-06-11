@@ -43,8 +43,14 @@ jobs:
       run: |
         curl -L -o $MINICONDA_FILENAME "https://repo.continuum.io/miniconda/$MINICONDA_FILENAME"
         bash ${MINICONDA_FILENAME} -b -f -p $HOME/miniconda3
-        echo "::add-path::$HOME/miniconda3/bin"
-        echo "::add-path::$HOME/miniconda3/Scripts"
+        echo "$HOME/miniconda3/bin" >> "$GITHUB_PATH"
+        echo "$HOME/miniconda3/Scripts" >> "$GITHUB_PATH"
+
+    - name: Initialize conda
+      shell: bash
+      run: |
+        echo "Current path:"
+        echo ${PATH}
         conda init
 
     - name: Download and build dependencies
