@@ -73,12 +73,12 @@ set(DEP_LIBRARIES ${DEP_LIBRARIES} ${Boost_LIBRARIES})
 
 else()
 
-include_directories(${CMAKE_SOURCE_DIR}/deps/boost_1_73_0)
+include_directories(${CMAKE_SOURCE_DIR}/deps/boost_1_88_0)
 set(
   DEP_LIBRARIES
   ${DEP_LIBRARIES}
-  ${CMAKE_SOURCE_DIR}/deps/boost_1_73_0/stage/lib/libboost_thread.a
-  ${CMAKE_SOURCE_DIR}/deps/boost_1_73_0/stage/lib/libboost_program_options.a
+  ${CMAKE_SOURCE_DIR}/deps/boost_1_88_0/stage/lib/libboost_thread.a
+  ${CMAKE_SOURCE_DIR}/deps/boost_1_88_0/stage/lib/libboost_program_options.a
 )
 
 endif()

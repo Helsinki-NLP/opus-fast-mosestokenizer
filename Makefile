@@ -52,11 +52,11 @@ download-build-static-deps:
 	)
 
 	@echo "Downloading and building boost"
-	curl -L -o deps/boost_1_73_0.tar.gz \
-		https://archives.boost.io/release/1.73.0/source/boost_1_73_0.tar.gz
-	tar -C deps -xf deps/boost_1_73_0.tar.gz
+	curl -L -o deps/boost_1_88_0.tar.gz \
+		https://archives.boost.io/release/1.88.0/source/boost_1_88_0.tar.gz
+	tar -C deps -xf deps/boost_1_88_0.tar.gz
 	( \
-		cd deps/boost_1_73_0; \
+		cd deps/boost_1_88_0; \
 		./bootstrap.sh \
 			--with-libraries=thread,program_options \
 			--without-icu \
