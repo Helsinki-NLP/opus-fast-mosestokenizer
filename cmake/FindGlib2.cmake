@@ -32,6 +32,7 @@ set(
   Glib2_INCLUDE_DIRS
   ${CMAKE_SOURCE_DIR}/deps/glib-2.85.0
   ${CMAKE_SOURCE_DIR}/deps/glib-2.85.0/glib
+  ${CMAKE_SOURCE_DIR}/deps/glib-2.85.0/build
   ${CMAKE_SOURCE_DIR}/deps/glib-2.85.0/build/glib
 )
 set(Glib2_LIBRARIES ${CMAKE_SOURCE_DIR}/deps/glib-2.85.0/build/glib/libglib-2.0.a)

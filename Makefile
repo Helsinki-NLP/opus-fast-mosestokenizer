@@ -47,8 +47,8 @@ download-build-static-deps:
 	tar -C deps -xf deps/glib-2.85.0.tar.xz
 	( \
 		cd deps/glib-2.85.0; \
-		meson build --default-library static; \
-		ninja -C build; \
+		meson setup build --default-library static; \
+		meson compile -C build; \
 	)
 
 	@echo "Downloading and building boost"
