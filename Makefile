@@ -42,21 +42,21 @@ download-build-static-deps:
 	cd deps/re2-2020-06-01; CXXFLAGS="-fPIC" make
 
 	@echo "Downloading and building glib2"
-	curl -L -o deps/glib-2.72.4.tar.xz \
-		https://download.gnome.org/sources/glib/2.72/glib-2.72.4.tar.xz
-	tar -C deps -xf deps/glib-2.72.4.tar.xz
+	curl -L -o deps/glib-2.85.0.tar.xz \
+		https://download.gnome.org/sources/glib/2.85/glib-2.85.0.tar.xz
+	tar -C deps -xf deps/glib-2.85.0.tar.xz
 	( \
-		cd deps/glib-2.72.4; \
-		meson build --default-library static; \
-		ninja -C build; \
+		cd deps/glib-2.85.0; \
+		meson setup build --default-library static; \
+		meson compile -C build; \
 	)
 
 	@echo "Downloading and building boost"
-	curl -L -o deps/boost_1_73_0.tar.gz \
-		https://boostorg.jfrog.io/artifactory/main/release/1.73.0/source/boost_1_73_0.tar.gz
-	tar -C deps -xf deps/boost_1_73_0.tar.gz
+	curl -L -o deps/boost_1_88_0.tar.gz \
+		https://archives.boost.io/release/1.88.0/source/boost_1_88_0.tar.gz
+	tar -C deps -xf deps/boost_1_88_0.tar.gz
 	( \
-		cd deps/boost_1_73_0; \
+		cd deps/boost_1_88_0; \
 		./bootstrap.sh \
 			--with-libraries=thread,program_options \
 			--without-icu \
