@@ -89,7 +89,7 @@ jobs:
     - name: Build package and upload from docker
       run: |
         docker run --rm -v "${PWD}:/opt/fast-mosestokenizer" \
-          ubuntu:24.04 /bin/bash /opt/fast-mosestokenizer/build-release-linux.sh
+          ubuntu:22.04 /bin/bash /opt/fast-mosestokenizer/build-release-linux.sh
 
     - uses: actions/upload-artifact@v4
       with:
