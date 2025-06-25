@@ -34,6 +34,6 @@ for VERSION in 3.9 3.10 3.11 3.12 3.13; do
     conda create -n py$VERSION -y python=$VERSION
     conda activate py$VERSION
     STATIC_LIBS=1 python setup.py build_ext bdist_wheel \
-        --plat-name manylinux1_x86_64
+        --plat-name manylinux1_x86_64 --build-number 1
     conda deactivate
 done
