@@ -1,5 +1,5 @@
 **opus-fast-mosestokenizer** is a fork of [fast-mosestokenizer](https://github.com/mingruimingrui/fast-mosestokenizer)
-created to ensure compability of the package with current Python environments.
+created to ensure compatibility of the package with current Python environments.
 
 **fast-mosestokenizer** is a C++ implementation of the moses tokenizer
 which is a favourite among the folks in NLP research.
@@ -26,10 +26,11 @@ see [./bench/README.md](./bench/README.md) for more information.
 
 ## Installation
 
-Python users using `linux` and `osx>=10.15` can install directly from PyPI.
+Python users using `linux` and `osx>=10.9` (`osx>=11.0` for Apple Silicon users) can install
+directly from PyPI.
 
 ```sh
-pip install fast-mosestokenizer
+pip install opus-fast-mosestokenizer
 ```
 
 See [./INSTALL.md](./INSTALL.md) for more information.
