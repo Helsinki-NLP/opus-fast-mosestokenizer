@@ -22,7 +22,13 @@ env:
   CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux2014"
   CIBW_ENVIRONMENT_LINUX: "STATIC_LIBS=1 BOOST_TOOLSET=gcc"
   CIBW_ENVIRONMENT_MACOS: "STATIC_LIBS=1 BOOST_TOOLSET=clang"
-  CIBW_BEFORE_BUILD: "pip install meson ninja && make download-build-static-deps"
+  CIBW_BEFORE_BUILD_LINUX: >
+    yum install -y gettext gettext-devel &&
+    pip install meson ninja &&
+    make download-build-static-deps
+  CIBW_BEFORE_BUILD_MACOS: >
+    pip install meson ninja &&
+    make download-build-static-deps
 
 jobs:
   build-sdist:
