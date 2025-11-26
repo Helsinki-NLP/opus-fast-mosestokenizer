@@ -52,13 +52,13 @@ jobs:
             runner: macos-13
             arch: x86_64
             miniconda: Miniconda3-latest-MacOSX-x86_64.sh
-            min_macosx_deployment_target: 10.9
+            min_macosx_deployment_target: "10.9"
 
           - os: macos-14
             runner: macos-14
             arch: arm64
             miniconda: Miniconda3-latest-MacOSX-arm64.sh
-            min_macosx_deployment_target: 11.0
+            min_macosx_deployment_target: "11.0"
 
     steps:
       - uses: actions/checkout@v4
@@ -104,7 +104,7 @@ jobs:
             conda activate py$VERSION
 
             if [[ "${{ matrix.os }}" == macos-* ]]; then
-              PLAT="macosx-${{ matrix.min_macosx_deployment_target }}-${{ matrix.arch }}"
+              PLAT="macosx_${{ matrix.min_macosx_deployment_target }}_${{ matrix.arch }}"
             else
               PLAT="${{ matrix.plat }}"
             fi
