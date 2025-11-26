@@ -16,7 +16,6 @@ on:
 env:
   CIBW_ARCHS_LINUX: "x86_64 aarch64"
   CIBW_ARCHS_MACOS: "x86_64 arm64"
-  CIBW_SKIP: "cp37-macosx_arm64"
   CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
   CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_28"
   CIBW_ENVIRONMENT_LINUX: "STATIC_LIBS=1 BOOST_TOOLSET=gcc"
@@ -26,7 +25,7 @@ env:
     echo "=== Debug: Check gettext installation ===" &&
     ls -l /usr/lib64/libintl* &&
     echo "=== Debug: pkg-config for gettext ===" &&
-    pkg-config --libs gettext || echo "pkg-config failed" &
+    pkg-config --libs gettext || echo "pkg-config failed" &&
     pip install meson ninja &&
     make download-build-static-deps
   CIBW_BEFORE_BUILD_MACOS: >
@@ -46,32 +45,38 @@ jobs:
           name: source
           path: dist/*.tar.gz
 
-  build-wheels:
-    name: Build wheels for ${{ matrix.python }}
+  build-wheels-linux:
+    name: Build wheels for Linux ${{ matrix.python }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: ["cp37-*", "cp38-*", "cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
+        python: [
+          "cp37-manylinux_*",
+          "cp38-manylinux_*",
+          "cp39-manylinux_*",
+          "cp310-manylinux_*",
+          "cp311-manylinux_*",
+          "cp312-manylinux_*",
+          "cp313-manylinux_*"
+        ]
     steps:
       - uses: actions/checkout@v4
 
-      # ✅ Cache pip packages
       - name: Cache pip
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          key: linux-pip-${{ hashFiles('**/requirements.txt') }}
           restore-keys: |
-            ${{ runner.os }}-pip-
+            linux-pip-
 
-      # ✅ Cache static deps
       - name: Cache static deps
         uses: actions/cache@v4
         with:
           path: deps
-          key: ${{ runner.os }}-staticdeps-${{ hashFiles('Makefile') }}
+          key: linux-staticdeps-${{ hashFiles('Makefile') }}
           restore-keys: |
-            ${{ runner.os }}-staticdeps-
+            linux-staticdeps-
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -88,14 +93,65 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.python }}
+          name: wheels-linux-${{ matrix.python }}
+          path: dist/*.whl
+
+  build-wheels-macos:
+    name: Build wheels for macOS ${{ matrix.python }}
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        python: [
+          "cp38-macosx_*",
+          "cp39-macosx_*",
+          "cp310-macosx_*",
+          "cp311-macosx_*",
+          "cp312-macosx_*",
+          "cp313-macosx_*"
+        ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/pip
+          key: macos-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            macos-pip-
+
+      - name: Cache static deps
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: macos-staticdeps-${{ hashFiles('Makefile') }}
+          restore-keys: |
+            macos-staticdeps-
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install cibuildwheel
+        run: pip install cibuildwheel==2.16.2
+
+      - name: Build wheels
+        run: cibuildwheel --output-dir dist
+        env:
+          CIBW_BUILD: ${{ matrix.python }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos-${{ matrix.python }}
           path: dist/*.whl
 
   make-release:
     runs-on: ubuntu-latest
     needs:
       - build-sdist
-      - build-wheels
+      - build-wheels-linux
+      - build-wheels-macos
     steps:
       - uses: actions/download-artifact@v4
         with:
