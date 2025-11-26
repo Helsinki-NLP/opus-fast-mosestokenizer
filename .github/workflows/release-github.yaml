@@ -13,7 +13,7 @@ on:
       - opus-release
 
 env:
-  PYTHON_VERSIONS: "3.6 3.7 3.8 3.9 3.10 3.11 3.12 3.13"
+  PYTHON_VERSIONS: "3.7 3.8 3.9 3.10 3.11 3.12 3.13"
 
 jobs:
   build-sdist:
@@ -89,13 +89,8 @@ jobs:
         run: |
           eval "$(conda shell.bash hook)"
           for VERSION in $PYTHON_VERSIONS; do
-            if [[ "${{ matrix.os }}" == macos-* ]] && [[ "${{ matrix.arch }}" == arm64 ]] && ([[ "$VERSION" == "3.6" ]] || [[ "$VERSION" == "3.7" ]]); then
+            if [[ "${{ matrix.os }}" == macos-* ]] && [[ "${{ matrix.arch }}" == arm64 ]] && [[ "$VERSION" == "3.7" ]]; then
               echo "Skipping Python $VERSION on macOS arm64 because conda does not support it"
-              continue
-            fi
-          
-            if [[ "${{ matrix.os }}" == ubuntu-* ]] && [[ "${{ matrix.arch }}" == arm64 ]] && [[ "$VERSION" == "3.6" ]]; then
-              echo "Skipping Python $VERSION on ubuntu arm64 because conda does not support it"
               continue
             fi
           
