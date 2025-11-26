@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.5)
 
 file(STRINGS "VERSION" MOSESTOKENIZER_VERSION)
 project(mosestokenizer VERSION ${MOSESTOKENIZER_VERSION} LANGUAGES CXX)
