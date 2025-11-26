@@ -1,3 +1,4 @@
+
 name: Build and upload python packages to Github release
 
 on:
@@ -13,7 +14,14 @@ on:
       - opus-release
 
 env:
-  PYTHON_VERSIONS: "3.7 3.8 3.9 3.10 3.11 3.12 3.13"
+  CIBW_BUILD: "cp37-* cp38-* cp39-* cp310-* cp311-* cp312-* cp313-*"
+  CIBW_ARCHS_LINUX: "x86_64 aarch64"
+  CIBW_ARCHS_MACOS: "x86_64 arm64"
+  CIBW_SKIP: "cp37-macosx_arm64" # skip unsupported combos
+  CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
+  CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux2014"
+  CIBW_ENVIRONMENT: "STATIC_LIBS=1"
+  CIBW_BEFORE_BUILD: "pip install meson ninja && make download-build-static-deps"
 
 jobs:
   build-sdist:
@@ -21,117 +29,44 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Build sdist
         run: pipx run build --sdist
-
       - uses: actions/upload-artifact@v4
         with:
           name: source
           path: dist/*.tar.gz
 
   build-wheels:
-    name: Build wheels on ${{ matrix.os }} (${{ matrix.arch }})
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-24.04
-            runner: ubuntu-24.04
-            arch: x86_64
-            miniconda: Miniconda3-latest-Linux-x86_64.sh
-            plat: manylinux1_x86_64
-
-          - os: ubuntu-24.04-arm
-            runner: ubuntu-24.04-arm
-            arch: arm64
-            miniconda: Miniconda3-latest-Linux-aarch64.sh
-            plat: manylinux2014_aarch64
-
-          - os: macos-13
-            runner: macos-13
-            arch: x86_64
-            miniconda: Miniconda3-latest-MacOSX-x86_64.sh
-            min_macosx_deployment_target: "10.9"
-
-          - os: macos-14
-            runner: macos-14
-            arch: arm64
-            miniconda: Miniconda3-latest-MacOSX-arm64.sh
-            min_macosx_deployment_target: "11.0"
-
+    name: Build wheels for Linux and macOS
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download and install Miniconda
-        shell: bash
-        run: |
-          curl -O "https://repo.anaconda.com/miniconda/${{ matrix.miniconda }}"
-          bash "${{ matrix.miniconda }}" -b -p $HOME/miniconda3
-          echo "$HOME/miniconda3/bin" >> "$GITHUB_PATH"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-      - name: Initialize conda
-        shell: bash
-        run: conda init
-
-      - name: Build static dependencies
-        shell: bash
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda create -n meson -y python=3.13
-          conda activate meson
-          conda install -y meson
-          make download-build-static-deps
-          conda deactivate
+      - name: Install cibuildwheel
+        run: pip install cibuildwheel==2.16.2
 
       - name: Build wheels
-        shell: bash
-        run: |
-          eval "$(conda shell.bash hook)"
-          for VERSION in $PYTHON_VERSIONS; do
-            if [[ "${{ matrix.os }}" == macos-* ]] && [[ "${{ matrix.arch }}" == arm64 ]] && [[ "$VERSION" == "3.7" ]]; then
-              echo "Skipping Python $VERSION on macOS arm64 because conda does not support it"
-              continue
-            fi
-          
-            if [[ "${{ matrix.os }}" == ubuntu-* ]] && [[ "${{ matrix.arch }}" == arm64 ]] && [[ "$VERSION" == "3.7" ]]; then
-              echo "Ubuntu arm64 Python 3.7 is fetched from conda-forge chanel"
-              conda create -n py$VERSION -c conda-forge -c defaults -y python=$VERSION
-              conda config --set channel_priority strict
-            else
-              conda create -n py$VERSION -y python=$VERSION
-            fi
-            conda activate py$VERSION
-
-            if [[ "${{ matrix.os }}" == macos-* ]]; then
-              PLAT="macosx_${{ matrix.min_macosx_deployment_target }}_${{ matrix.arch }}"
-            else
-              PLAT="${{ matrix.plat }}"
-            fi
-
-            echo "Building wheel for Python $VERSION on ${{ matrix.os }} ${{ matrix.arch }} with plat=$PLAT"
-
-            STATIC_LIBS=1 python setup.py build_ext bdist_wheel --plat-name=$PLAT
-
-            conda deactivate
-          done
+        run: cibuildwheel --output-dir dist
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.os }}-${{ matrix.arch }}
+          name: wheels
           path: dist/*.whl
 
   make-release:
     runs-on: ubuntu-latest
-
     needs:
       - build-sdist
       - build-wheels
-
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: wheels-*
+          pattern: wheels
           path: dist
           merge-multiple: true
 
@@ -144,11 +79,10 @@ jobs:
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/*.whl
+          files: dist/*
 
       - name: Upload to PyPI
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: pypa/gh-action-pypi-publish@v1.5.0
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
-          # To test: repository_url: https://test.pypi.org/legacy/
