@@ -112,7 +112,7 @@ setup(
     long_description=LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
     url='https://github.com/Helsinki-NLP/opus-fast-mosestokenizer',
-    python_requires='>=3.6',
+    python_requires='>=3.7',
 
     packages=['mosestokenizer'],
     package_dir={'mosestokenizer': 'bindings/python/mosestokenizer'},
