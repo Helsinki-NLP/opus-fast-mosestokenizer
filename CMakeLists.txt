@@ -84,9 +84,11 @@ set(
 endif()
 
 # Intl
-find_package(Intl REQUIRED)
-include_directories(${Intl_INCLUDE_DIRS})
-set(DEP_LIBRARIES ${DEP_LIBRARIES} ${Intl_LIBRARIES})
+find_package(Intl)
+if(Intl_FOUND)
+    include_directories(${Intl_INCLUDE_DIRS})
+    list(APPEND DEP_LIBRARIES ${Intl_LIBRARIES})
+endif()
 
 find_package(Glib2 REQUIRED)
 include_directories(${Glib2_INCLUDE_DIRS})
