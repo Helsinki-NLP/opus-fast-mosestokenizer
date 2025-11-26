@@ -14,16 +14,19 @@ on:
       - opus-release
 
 env:
-  CIBW_BUILD: "cp37-* cp38-* cp39-* cp310-* cp311-* cp312-* cp313-*"
   CIBW_ARCHS_LINUX: "x86_64 aarch64"
   CIBW_ARCHS_MACOS: "x86_64 arm64"
-  CIBW_SKIP: "cp37-macosx_arm64" # skip unsupported combos
+  CIBW_SKIP: "cp37-macosx_arm64"
   CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
   CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_28"
   CIBW_ENVIRONMENT_LINUX: "STATIC_LIBS=1 BOOST_TOOLSET=gcc"
   CIBW_ENVIRONMENT_MACOS: "STATIC_LIBS=1 BOOST_TOOLSET=clang"
   CIBW_BEFORE_BUILD_LINUX: >
-    yum install -y gettext gettext-devel &&
+    yum install -y gettext gettext-devel pkgconfig &&
+    echo "=== Debug: Check gettext installation ===" &&
+    ls -l /usr/lib64/libintl* &&
+    echo "=== Debug: pkg-config for gettext ===" &&
+    pkg-config --libs gettext || echo "pkg-config failed" &
     pip install meson ninja &&
     make download-build-static-deps
   CIBW_BEFORE_BUILD_MACOS: >
@@ -44,10 +47,31 @@ jobs:
           path: dist/*.tar.gz
 
   build-wheels:
-    name: Build wheels for Linux and macOS
+    name: Build wheels for ${{ matrix.python }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["cp37-*", "cp38-*", "cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
     steps:
       - uses: actions/checkout@v4
+
+      # ✅ Cache pip packages
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # ✅ Cache static deps
+      - name: Cache static deps
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: ${{ runner.os }}-staticdeps-${{ hashFiles('Makefile') }}
+          restore-keys: |
+            ${{ runner.os }}-staticdeps-
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -59,10 +83,12 @@ jobs:
 
       - name: Build wheels
         run: cibuildwheel --output-dir dist
+        env:
+          CIBW_BUILD: ${{ matrix.python }}
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-${{ matrix.python }}
           path: dist/*.whl
 
   make-release:
@@ -73,7 +99,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: wheels
+          pattern: wheels-*
           path: dist
           merge-multiple: true
 
