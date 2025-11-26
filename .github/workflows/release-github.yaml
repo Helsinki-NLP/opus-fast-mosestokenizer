@@ -51,7 +51,6 @@ jobs:
     strategy:
       matrix:
         python: [
-          "cp37-manylinux_*",
           "cp38-manylinux_*",
           "cp39-manylinux_*",
           "cp310-manylinux_*",
@@ -84,7 +83,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install cibuildwheel
-        run: pip install cibuildwheel==2.16.2
+        run: pip install cibuildwheel
 
       - name: Build wheels
         run: cibuildwheel --output-dir dist
@@ -134,7 +133,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install cibuildwheel
-        run: pip install cibuildwheel==2.16.2
+        run: pip install cibuildwheel
 
       - name: Build wheels
         run: cibuildwheel --output-dir dist
