@@ -42,7 +42,7 @@ download-build-static-deps:
 	curl -L -o deps/re2-2020-06-01.tar.gz \
 		https://github.com/google/re2/archive/2020-06-01.tar.gz
 	tar -C deps -xf deps/re2-2020-06-01.tar.gz
-	cd deps/re2-2020-06-01; CXXFLAGS="-fPIC" make
+	cd deps/re2-2020-06-01; CXXFLAGS="-fPIC" make -j1
 
 	@echo "Downloading and building glib2"
 	curl -L -o deps/glib-2.85.0.tar.xz \
@@ -50,7 +50,7 @@ download-build-static-deps:
 	tar -C deps -xf deps/glib-2.85.0.tar.xz
 	( \
 		cd deps/glib-2.85.0; \
-		meson setup build --default-library static; \
+		meson setup --reconfigure build --default-library static; \
 		meson compile -C build; \
 	)
 

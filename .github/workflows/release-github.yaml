@@ -18,18 +18,16 @@ env:
   CIBW_ARCHS_MACOS: "x86_64 arm64"
   CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
   CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux_2_28"
-  CIBW_ENVIRONMENT_LINUX: "STATIC_LIBS=1 BOOST_TOOLSET=gcc"
+  CIBW_ENVIRONMENT_LINUX: "STATIC_LIBS=1 BOOST_TOOLSET=gcc CMAKE_ARGS='-DIntl_LIBRARY=NONE'"
   CIBW_ENVIRONMENT_MACOS: "STATIC_LIBS=1 BOOST_TOOLSET=clang"
   CIBW_BEFORE_BUILD_LINUX: >
-    yum install -y gettext gettext-devel pkgconfig &&
-    echo "=== Debug: Check gettext installation ===" &&
-    ls -l /usr/lib64/libintl* &&
-    echo "=== Debug: pkg-config for gettext ===" &&
-    pkg-config --libs gettext || echo "pkg-config failed" &&
+    yum install -y gettext gettext-devel &&
     pip install meson ninja &&
+    meson setup --reconfigure deps/glib-*/build || true &&
     make download-build-static-deps
   CIBW_BEFORE_BUILD_MACOS: >
     pip install meson ninja &&
+    meson setup --reconfigure deps/glib-*/build || true &&
     make download-build-static-deps
 
 jobs:
@@ -60,6 +58,10 @@ jobs:
         ]
     steps:
       - uses: actions/checkout@v4
+
+      - name: Enable QEMU for ARM
+        run: |
+          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
       - name: Cache pip
         uses: actions/cache@v4
@@ -104,27 +106,27 @@ jobs:
           # macOS 13 (x86_64)
           - os: macos-13
             arch: x86_64
-            deployment_target: "10.9"
+            deployment_target: "10.13"
             python: "cp38-macosx_*"
           - os: macos-13
             arch: x86_64
-            deployment_target: "10.9"
+            deployment_target: "10.13"
             python: "cp39-macosx_*"
           - os: macos-13
             arch: x86_64
-            deployment_target: "10.9"
+            deployment_target: "10.13"
             python: "cp310-macosx_*"
           - os: macos-13
             arch: x86_64
-            deployment_target: "10.9"
+            deployment_target: "10.13"
             python: "cp311-macosx_*"
           - os: macos-13
             arch: x86_64
-            deployment_target: "10.9"
+            deployment_target: "10.13"
             python: "cp312-macosx_*"
           - os: macos-13
             arch: x86_64
-            deployment_target: "10.9"
+            deployment_target: "10.13"
             python: "cp313-macosx_*"
   
           # macOS 14 (arm64)
@@ -184,6 +186,14 @@ jobs:
         env:
           CIBW_BUILD: ${{ matrix.python }}
           MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target }}
+          CIBW_REPAIR_WHEEL_COMMAND_MACOS: ""
+
+      # ✅ Add delocate debug step
+      - name: Debug wheel dependencies (macOS)
+        run: |
+          pip install delocate
+          echo "=== Listing dependencies for built wheels ==="
+          delocate-listdeps dist/*.whl || echo "delocate-listdeps failed"
 
       - uses: actions/upload-artifact@v4
         with:
