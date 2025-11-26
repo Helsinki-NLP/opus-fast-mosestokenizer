@@ -96,18 +96,62 @@ jobs:
           path: dist/*.whl
 
   build-wheels-macos:
-    name: Build wheels for macOS ${{ matrix.python }}
-    runs-on: macos-latest
+    name: Build wheels for macOS ${{ matrix.os }} ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python: [
-          "cp38-macosx_*",
-          "cp39-macosx_*",
-          "cp310-macosx_*",
-          "cp311-macosx_*",
-          "cp312-macosx_*",
-          "cp313-macosx_*"
-        ]
+        include:
+          # macOS 13 (x86_64)
+          - os: macos-13
+            arch: x86_64
+            deployment_target: "10.9"
+            python: "cp38-macosx_*"
+          - os: macos-13
+            arch: x86_64
+            deployment_target: "10.9"
+            python: "cp39-macosx_*"
+          - os: macos-13
+            arch: x86_64
+            deployment_target: "10.9"
+            python: "cp310-macosx_*"
+          - os: macos-13
+            arch: x86_64
+            deployment_target: "10.9"
+            python: "cp311-macosx_*"
+          - os: macos-13
+            arch: x86_64
+            deployment_target: "10.9"
+            python: "cp312-macosx_*"
+          - os: macos-13
+            arch: x86_64
+            deployment_target: "10.9"
+            python: "cp313-macosx_*"
+  
+          # macOS 14 (arm64)
+          - os: macos-14
+            arch: arm64
+            deployment_target: "11.0"
+            python: "cp38-macosx_*"
+          - os: macos-14
+            arch: arm64
+            deployment_target: "11.0"
+            python: "cp39-macosx_*"
+          - os: macos-14
+            arch: arm64
+            deployment_target: "11.0"
+            python: "cp310-macosx_*"
+          - os: macos-14
+            arch: arm64
+            deployment_target: "11.0"
+            python: "cp311-macosx_*"
+          - os: macos-14
+            arch: arm64
+            deployment_target: "11.0"
+            python: "cp312-macosx_*"
+          - os: macos-14
+            arch: arm64
+            deployment_target: "11.0"
+            python: "cp313-macosx_*"
     steps:
       - uses: actions/checkout@v4
 
@@ -139,6 +183,7 @@ jobs:
         run: cibuildwheel --output-dir dist
         env:
           CIBW_BUILD: ${{ matrix.python }}
+          MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment_target }}
 
       - uses: actions/upload-artifact@v4
         with:
