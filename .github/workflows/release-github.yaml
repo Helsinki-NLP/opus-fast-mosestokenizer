@@ -20,7 +20,8 @@ env:
   CIBW_SKIP: "cp37-macosx_arm64" # skip unsupported combos
   CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
   CIBW_MANYLINUX_AARCH64_IMAGE: "manylinux2014"
-  CIBW_ENVIRONMENT: "STATIC_LIBS=1"
+  CIBW_ENVIRONMENT_LINUX: "STATIC_LIBS=1 BOOST_TOOLSET=gcc"
+  CIBW_ENVIRONMENT_MACOS: "STATIC_LIBS=1 BOOST_TOOLSET=clang"
   CIBW_BEFORE_BUILD: "pip install meson ninja && make download-build-static-deps"
 
 jobs:
