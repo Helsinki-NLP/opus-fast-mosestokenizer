@@ -114,6 +114,11 @@ jobs:
 
             echo "Building wheel for Python $VERSION on ${{ matrix.os }} ${{ matrix.arch }} with plat=$PLAT"
 
+            if [[ "${{ matrix.os }}" == linux-* ]]; then
+              export BOOST_TOOLSET=gcc
+              export CXXFLAGS="-static-libstdc++ -static-libgcc"
+            fi
+
             STATIC_LIBS=1 python setup.py build_ext bdist_wheel --plat-name=$PLAT
 
             conda deactivate
@@ -126,6 +131,11 @@ jobs:
           for whl in dist/*manylinux*.whl; do
             auditwheel repair "$whl" -w dist/
           done
+
+      - name: Remove original wheels
+        if: startsWith(matrix.os, 'linux-')
+        run: |
+          rm dist/*manylinux_2_28_x86_64.whl dist/*manylinux_2_28_aarch64.whl
 
       - uses: actions/upload-artifact@v4
         with:
