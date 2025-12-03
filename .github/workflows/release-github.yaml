@@ -39,14 +39,14 @@ jobs:
           # Linux x86_64
           - os: linux-x86_64
             runner: ubuntu-latest
-            container: quay.io/pypa/manylinux2014_x86_64
+            container: quay.io/pypa/manylinux2014_x86_64:latest
             arch: x86_64
             plat: manylinux2014_x86_64
 
           # Linux arm64 (requires QEMU or native ARM runner)
           - os: linux-arm64
             runner: ubuntu-24.04-arm
-            container: quay.io/pypa/manylinux2014_aarch64
+            container: quay.io/pypa/manylinux2014_aarch64:latest
             arch: arm64
             plat: manylinux2014_aarch64
 
@@ -76,16 +76,25 @@ jobs:
           restore-keys: |
             staticdeps-${{ matrix.os }}-
 
-      # Linux build logic
-      - name: Install Meson for Linux
+      - name: Debug container contents
         if: startsWith(matrix.os, 'linux-')
         run: |
-          python3 -m ensurepip
-          pip install meson ninja
+          echo "=== Hostname ==="
+          hostname
+          echo "=== OS Release ==="
+          cat /etc/os-release || echo "No /etc/os-release"
+          echo "=== Python location ==="
+          which python3
+          echo "=== Current user ==="
+          whoami
+          echo "=== Python ==="
+          ls -l /opt/python
 
       - name: Build wheels using manylinux Python interpreters
         if: startsWith(matrix.os, 'linux-')
         run: |
+          # download-build-static-deps requires meson and ninja
+          python3 -m pip install meson ninja
           make download-build-static-deps
           for PYBIN in /opt/python/cp3*/bin; do
             VERSION=$(${PYBIN}/python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
