@@ -69,6 +69,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Prepare Miniconda cache path
+        if: startsWith(matrix.os, 'macos-')
+        run: mkdir -p $HOME/miniconda3
+
       # Cache static deps (Linux & macOS)
       - name: Cache static deps
         uses: actions/cache@v4
@@ -100,11 +104,11 @@ jobs:
               # Set compilers explicitly
               export CC=/usr/bin/gcc
               export CXX=/usr/bin/g++
-              
+
               # Sanity check: can we compile a simple program?
               echo 'int main(){}' > test.cpp
               g++ test.cpp || { echo \"Compiler test failed\"; exit 1; }
-              
+
               # Build static dependencies
               export BOOST_TOOLSET=gcc
               make download-build-static-deps
@@ -122,6 +126,8 @@ jobs:
                 auditwheel repair \"\$whl\" -w dist/
               done
             "
+          # Fix permissions so caching doesn't fail
+          sudo chown -R $USER:$USER deps dist
 
       # macOS build logic
       - name: Cache Miniconda
@@ -177,10 +183,6 @@ jobs:
         with:
           name: wheels-${{ matrix.os }}-${{ matrix.arch }}
           path: dist/*.whl
-
-      # Fix permissions so caching doesn't fail
-      - name: Fix permissions for deps
-        run: chmod -R u+rw deps
 
       - name: Save updated static deps cache
         uses: actions/cache@v4
