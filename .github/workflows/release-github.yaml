@@ -67,7 +67,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Cache static deps (Linux & macOS)
+      - name: Cache static deps
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: staticdeps-${{ matrix.os }}-${{ hashFiles('Makefile') }}
+          restore-keys: |
+            staticdeps-${{ matrix.os }}-
+
       # Linux build logic
+      - name: Install Meson for Linux
+        if: startsWith(matrix.os, 'linux-')
+        run: |
+          python3 -m ensurepip
+          pip install meson ninja
+
       - name: Build wheels using manylinux Python interpreters
         if: startsWith(matrix.os, 'linux-')
         run: |
@@ -94,12 +109,23 @@ jobs:
           rm dist/*${{ matrix.plat }}.whl
 
       # macOS build logic
+      - name: Cache Miniconda
+        if: startsWith(matrix.os, 'macos-')
+        uses: actions/cache@v4
+        with:
+          path: $HOME/miniconda3
+          key: miniconda-${{ matrix.os }}-${{ matrix.arch }}
+          restore-keys: |
+            miniconda-${{ matrix.os }}-
+
       - name: Download and install Miniconda
         if: startsWith(matrix.os, 'macos-')
         shell: bash
         run: |
-          curl -O "https://repo.anaconda.com/miniconda/${{ matrix.miniconda }}"
-          bash "${{ matrix.miniconda }}" -b -p $HOME/miniconda3
+          if [ ! -d "$HOME/miniconda3" ]; then
+            curl -O "https://repo.anaconda.com/miniconda/${{ matrix.miniconda }}"
+            bash "${{ matrix.miniconda }}" -b -p $HOME/miniconda3
+          fi
           echo "$HOME/miniconda3/bin" >> "$GITHUB_PATH"
 
       - name: Initialize conda
