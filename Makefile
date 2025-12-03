@@ -1,3 +1,6 @@
+
+BOOST_TOOLSET ?= clang
+
 .PHONY = help build install clean
 
 help:
@@ -60,6 +63,6 @@ download-build-static-deps:
 		./bootstrap.sh \
 			--with-libraries=thread,program_options \
 			--without-icu \
-			--with-toolset=clang; \
-		./b2 -j8 toolset=clang link=static cxxflags=-fPIC; \
+			--with-toolset=$(BOOST_TOOLSET); \
+		./b2 -j8 toolset=$(BOOST_TOOLSET) link=static cxxflags=-fPIC; \
 	)

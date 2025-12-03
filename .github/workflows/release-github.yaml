@@ -1,3 +1,4 @@
+
 name: Build and upload python packages to Github release
 
 on:
@@ -13,7 +14,7 @@ on:
       - opus-release
 
 env:
-  PYTHON_VERSIONS: "3.7 3.8 3.9 3.10 3.11 3.12 3.13"
+  PYTHON_VERSIONS: "3.8 3.9 3.10 3.11 3.12 3.13"
 
 jobs:
   build-sdist:
@@ -21,10 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Build sdist
         run: pipx run build --sdist
-
       - uses: actions/upload-artifact@v4
         with:
           name: source
@@ -33,27 +32,34 @@ jobs:
   build-wheels:
     name: Build wheels on ${{ matrix.os }} (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
+    # Can't use container for all steps -> use docker when needed
+    # container: ${{ matrix.container }}
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - os: ubuntu-24.04
-            runner: ubuntu-24.04
+          # Linux x86_64
+          - os: linux-x86_64
+            runner: ubuntu-latest
+            container: quay.io/pypa/manylinux_2_28_x86_64:latest
             arch: x86_64
-            miniconda: Miniconda3-latest-Linux-x86_64.sh
-            plat: manylinux1_x86_64
+            plat: manylinux_2_28_x86_64
 
-          - os: ubuntu-24.04-arm
+          # Linux arm64 (requires QEMU or native ARM runner)
+          - os: linux-arm64
             runner: ubuntu-24.04-arm
+            container: quay.io/pypa/manylinux_2_28_aarch64:latest
             arch: arm64
-            miniconda: Miniconda3-latest-Linux-aarch64.sh
-            plat: manylinux2014_aarch64
+            plat: manylinux_2_28_aarch64
 
+          # macOS x86_64
           - os: macos-13
             runner: macos-13
             arch: x86_64
             miniconda: Miniconda3-latest-MacOSX-x86_64.sh
             min_macosx_deployment_target: "10.9"
 
+          # macOS arm64
           - os: macos-14
             runner: macos-14
             arch: arm64
@@ -63,18 +69,79 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Cache static deps (Linux & macOS)
+      - name: Cache static deps
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: staticdeps-${{ matrix.os }}-${{ hashFiles('Makefile') }}
+          restore-keys: |
+            staticdeps-${{ matrix.os }}-
+
+      - name: Build wheels in manylinux container
+        if: startsWith(matrix.os, 'linux-')
+        run: |
+          # Pull the full manylinux image
+          docker pull ${{ matrix.container }}
+
+          # Run the build inside the container
+          docker run --rm \
+            -v $PWD:/work \
+            -w /work \
+            ${{ matrix.container }} \
+            bash -c "
+              # Install build tools
+              yum install -y gcc gcc-c++ glibc glibc-devel libstdc++ libstdc++-devel binutils make
+
+              # Install meson and ninja inside container
+              /opt/python/cp311-cp311/bin/python -m pip install meson ninja
+              export PATH=/opt/python/cp311-cp311/bin:$PATH
+
+              # Set compilers explicitly
+              export CC=/usr/bin/gcc
+              export CXX=/usr/bin/g++
+
+              # Sanity check: can we compile a simple program?
+              echo 'int main(){}' > test.cpp
+              g++ test.cpp || { echo \"Compiler test failed\"; exit 1; }
+
+              # Build static dependencies
+              export BOOST_TOOLSET=gcc
+              make download-build-static-deps
+
+              # Loop through all Python interpreters in /opt/python
+              for PYBIN in /opt/python/cp3*/bin; do
+                \${PYBIN}/pip install setuptools wheel
+                echo \"Building wheel for Python \${PYBIN} on Linux with plat=${{ matrix.plat }}\"
+                STATIC_LIBS=1 \${PYBIN}/python setup.py build_ext bdist_wheel --plat-name=${{ matrix.plat }}
+              done
+
+              # Repair wheels for manylinux compliance
+              /opt/python/cp311-cp311/bin/python -m pip install auditwheel
+              for whl in dist/*manylinux*.whl; do
+                auditwheel repair \"\$whl\" -w dist/
+              done
+            "
+          # Fix permissions so caching doesn't fail
+          sudo chown -R $USER:$USER deps dist
+
       - name: Download and install Miniconda
+        if: startsWith(matrix.os, 'macos-')
         shell: bash
         run: |
-          curl -O "https://repo.anaconda.com/miniconda/${{ matrix.miniconda }}"
-          bash "${{ matrix.miniconda }}" -b -p $HOME/miniconda3
+          if [ ! -d "$HOME/miniconda3" ]; then
+            curl -O "https://repo.anaconda.com/miniconda/${{ matrix.miniconda }}"
+            bash "${{ matrix.miniconda }}" -b -p $HOME/miniconda3
+          fi
           echo "$HOME/miniconda3/bin" >> "$GITHUB_PATH"
 
       - name: Initialize conda
+        if: startsWith(matrix.os, 'macos-')
         shell: bash
         run: conda init
 
       - name: Build static dependencies
+        if: startsWith(matrix.os, 'macos-')
         shell: bash
         run: |
           eval "$(conda shell.bash hook)"
@@ -84,35 +151,17 @@ jobs:
           make download-build-static-deps
           conda deactivate
 
-      - name: Build wheels
+      - name: Build wheels (macOS)
+        if: startsWith(matrix.os, 'macos-')
         shell: bash
         run: |
           eval "$(conda shell.bash hook)"
           for VERSION in $PYTHON_VERSIONS; do
-            if [[ "${{ matrix.os }}" == macos-* ]] && [[ "${{ matrix.arch }}" == arm64 ]] && [[ "$VERSION" == "3.7" ]]; then
-              echo "Skipping Python $VERSION on macOS arm64 because conda does not support it"
-              continue
-            fi
-          
-            if [[ "${{ matrix.os }}" == ubuntu-* ]] && [[ "${{ matrix.arch }}" == arm64 ]] && [[ "$VERSION" == "3.7" ]]; then
-              echo "Ubuntu arm64 Python 3.7 is fetched from conda-forge chanel"
-              conda create -n py$VERSION -c conda-forge -c defaults -y python=$VERSION
-              conda config --set channel_priority strict
-            else
-              conda create -n py$VERSION -y python=$VERSION
-            fi
+            conda create -n py$VERSION -y python=$VERSION
             conda activate py$VERSION
-
-            if [[ "${{ matrix.os }}" == macos-* ]]; then
-              PLAT="macosx_${{ matrix.min_macosx_deployment_target }}_${{ matrix.arch }}"
-            else
-              PLAT="${{ matrix.plat }}"
-            fi
-
-            echo "Building wheel for Python $VERSION on ${{ matrix.os }} ${{ matrix.arch }} with plat=$PLAT"
-
+            PLAT="macosx_${{ matrix.min_macosx_deployment_target }}_${{ matrix.arch }}"
+            echo "Building wheel for Python $VERSION on macOS with plat=$PLAT"
             STATIC_LIBS=1 python setup.py build_ext bdist_wheel --plat-name=$PLAT
-
             conda deactivate
           done
 
@@ -121,13 +170,17 @@ jobs:
           name: wheels-${{ matrix.os }}-${{ matrix.arch }}
           path: dist/*.whl
 
+      - name: Save updated static deps cache
+        uses: actions/cache@v4
+        with:
+          path: deps
+          key: staticdeps-${{ matrix.os }}-${{ hashFiles('Makefile') }}
+
   make-release:
     runs-on: ubuntu-latest
-
     needs:
       - build-sdist
       - build-wheels
-
     steps:
       - uses: actions/download-artifact@v4
         with:
