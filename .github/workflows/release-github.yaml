@@ -32,6 +32,8 @@ jobs:
   build-wheels:
     name: Build wheels on ${{ matrix.os }} (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
+    # Can't use for all steps:
+    # container: ${{ matrix.container }}
     strategy:
       fail-fast: false
       matrix:
@@ -39,16 +41,16 @@ jobs:
           # Linux x86_64
           - os: linux-x86_64
             runner: ubuntu-latest
-            container: quay.io/pypa/manylinux2014_x86_64:latest
+            container: quay.io/pypa/manylinux_2_28_x86_64:latest
             arch: x86_64
-            plat: manylinux2014_x86_64
+            plat: manylinux_2_28_x86_64
 
           # Linux arm64 (requires QEMU or native ARM runner)
           - os: linux-arm64
             runner: ubuntu-24.04-arm
-            container: quay.io/pypa/manylinux2014_aarch64:latest
+            container: quay.io/pypa/manylinux_2_28_aarch64:latest
             arch: arm64
-            plat: manylinux2014_aarch64
+            plat: manylinux_2_28_aarch64
 
           # macOS x86_64
           - os: macos-13
@@ -76,46 +78,55 @@ jobs:
           restore-keys: |
             staticdeps-${{ matrix.os }}-
 
-      - name: Debug container contents
+      - name: Build wheels in manylinux container
         if: startsWith(matrix.os, 'linux-')
         run: |
-          echo "=== Hostname ==="
-          hostname
-          echo "=== OS Release ==="
-          cat /etc/os-release || echo "No /etc/os-release"
-          echo "=== Python location ==="
-          which python3
-          echo "=== Current user ==="
-          whoami
-          echo "=== Python ==="
-          ls -l /opt/python
+          # Pull the full manylinux image
+          docker pull ${{ matrix.container }}
 
-      - name: Build wheels using manylinux Python interpreters
-        if: startsWith(matrix.os, 'linux-')
-        run: |
-          # download-build-static-deps requires meson and ninja
-          python3 -m pip install meson ninja
-          make download-build-static-deps
-          for PYBIN in /opt/python/cp3*/bin; do
-            VERSION=$(${PYBIN}/python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-            echo "Building wheel for Python $VERSION on Linux with plat=${{ matrix.plat }}"
-            export BOOST_TOOLSET=gcc
-            export CXXFLAGS="-static-libstdc++ -static-libgcc"
-            STATIC_LIBS=1 "${PYBIN}/python" setup.py build_ext bdist_wheel --plat-name=${{ matrix.plat }}
-          done
+          # Run the build inside the container
+          docker run --rm \
+            -v $PWD:/work \
+            -w /work \
+            ${{ matrix.container }} \
+            bash -c "
+              # Install build tools
+              yum install -y gcc gcc-c++ glibc glibc-devel libstdc++ libstdc++-devel binutils make
 
-      - name: Repair wheels for manylinux compliance
-        if: startsWith(matrix.os, 'linux-')
-        run: |
-          pip install auditwheel
-          for whl in dist/*manylinux*.whl; do
-            auditwheel repair "$whl" -w dist/
-          done
+              # Install meson and ninja inside container
+              /opt/python/cp311-cp311/bin/python -m pip install meson ninja
+              export PATH=/opt/python/cp311-cp311/bin:$PATH
 
-      - name: Remove original wheels
-        if: startsWith(matrix.os, 'linux-')
-        run: |
-          rm dist/*${{ matrix.plat }}.whl
+              # Set compilers explicitly
+              export CC=/usr/bin/gcc
+              export CXX=/usr/bin/g++
+              
+              # Sanity check: can we compile a simple program?
+              echo 'int main(){}' > test.cpp
+              g++ test.cpp || { echo \"Compiler test failed\"; exit 1; }
+              
+              # Build static dependencies
+              export BOOST_TOOLSET=gcc
+              make download-build-static-deps
+
+              # Loop through all Python interpreters in /opt/python
+              for PYBIN in /opt/python/cp3*/bin; do
+                # VERSION=$(\${PYBIN}/python -c 'import sys; print(f\"{sys.version_info.major}.{sys.version_info.minor}\")')
+                \${PYBIN}/pip install setuptools wheel
+                echo \"Building wheel for Python \${PYBIN} on Linux with plat=${{ matrix.plat }}\"
+                # export CXXFLAGS='-static-libstdc++ -static-libgcc'
+                STATIC_LIBS=1 \${PYBIN}/python setup.py build_ext bdist_wheel --plat-name=${{ matrix.plat }}
+              done
+
+              # Repair wheels for manylinux compliance
+              /opt/python/cp311-cp311/bin/python -m pip install auditwheel
+              for whl in dist/*manylinux*.whl; do
+                auditwheel repair \"\$whl\" -w dist/
+              done
+
+              # Remove original wheels
+              # rm dist/*${{ matrix.plat }}.whl
+            "
 
       # macOS build logic
       - name: Cache Miniconda
