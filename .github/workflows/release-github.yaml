@@ -69,10 +69,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prepare Miniconda cache path
-        if: startsWith(matrix.os, 'macos-')
-        run: mkdir -p $HOME/miniconda3
-
       # Cache static deps (Linux & macOS)
       - name: Cache static deps
         uses: actions/cache@v4
@@ -128,16 +124,6 @@ jobs:
             "
           # Fix permissions so caching doesn't fail
           sudo chown -R $USER:$USER deps dist
-
-      # macOS build logic
-      - name: Cache Miniconda
-        if: startsWith(matrix.os, 'macos-')
-        uses: actions/cache@v4
-        with:
-          path: $HOME/miniconda3
-          key: miniconda-${{ matrix.os }}-${{ matrix.arch }}
-          restore-keys: |
-            miniconda-${{ matrix.os }}-
 
       - name: Download and install Miniconda
         if: startsWith(matrix.os, 'macos-')
