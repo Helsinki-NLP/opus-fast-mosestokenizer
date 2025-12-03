@@ -1,3 +1,4 @@
+
 name: Build and upload python packages to Github release
 
 on:
@@ -21,10 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Build sdist
         run: pipx run build --sdist
-
       - uses: actions/upload-artifact@v4
         with:
           name: source
@@ -37,26 +36,28 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Linux x86_64
           - os: linux-x86_64
             runner: ubuntu-latest
             container: quay.io/pypa/manylinux2014_x86_64
             arch: x86_64
-            miniconda: Miniconda3-latest-Linux-x86_64.sh
             plat: manylinux2014_x86_64
 
+          # Linux arm64 (requires QEMU or native ARM runner)
           - os: linux-arm64
             runner: ubuntu-24.04-arm
             container: quay.io/pypa/manylinux2014_aarch64
             arch: arm64
-            miniconda: Miniconda3-latest-Linux-aarch64.sh
             plat: manylinux2014_aarch64
 
+          # macOS x86_64
           - os: macos-13
             runner: macos-13
             arch: x86_64
             miniconda: Miniconda3-latest-MacOSX-x86_64.sh
             min_macosx_deployment_target: "10.9"
 
+          # macOS arm64
           - os: macos-14
             runner: macos-14
             arch: arm64
@@ -66,62 +67,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download and install Miniconda
-        shell: bash
+      # Linux build logic
+      - name: Build wheels using manylinux Python interpreters
+        if: startsWith(matrix.os, 'linux-')
         run: |
-          curl -O "https://repo.anaconda.com/miniconda/${{ matrix.miniconda }}"
-          bash "${{ matrix.miniconda }}" -b -p $HOME/miniconda3
-          echo "$HOME/miniconda3/bin" >> "$GITHUB_PATH"
-
-      - name: Initialize conda
-        shell: bash
-        run: conda init
-
-      - name: Build static dependencies
-        shell: bash
-        run: |
-          eval "$(conda shell.bash hook)"
-          conda create -n meson -y python=3.13
-          conda activate meson
-          conda install -y meson
           make download-build-static-deps
-          conda deactivate
-
-      - name: Build wheels
-        shell: bash
-        run: |
-          eval "$(conda shell.bash hook)"
-          for VERSION in $PYTHON_VERSIONS; do
-            if [[ "${{ matrix.os }}" == macos-* ]] && [[ "${{ matrix.arch }}" == arm64 ]] && [[ "$VERSION" == "3.7" ]]; then
-              echo "Skipping Python $VERSION on macOS arm64 because conda does not support it"
-              continue
-            fi
-          
-            if [[ "${{ matrix.os }}" == ubuntu-* ]] && [[ "${{ matrix.arch }}" == arm64 ]] && [[ "$VERSION" == "3.7" ]]; then
-              echo "Ubuntu arm64 Python 3.7 is fetched from conda-forge chanel"
-              conda create -n py$VERSION -c conda-forge -c defaults -y python=$VERSION
-              conda config --set channel_priority strict
-            else
-              conda create -n py$VERSION -y python=$VERSION
-            fi
-            conda activate py$VERSION
-
-            if [[ "${{ matrix.os }}" == macos-* ]]; then
-              PLAT="macosx_${{ matrix.min_macosx_deployment_target }}_${{ matrix.arch }}"
-            else
-              PLAT="${{ matrix.plat }}"
-            fi
-
-            echo "Building wheel for Python $VERSION on ${{ matrix.os }} ${{ matrix.arch }} with plat=$PLAT"
-
-            if [[ "${{ matrix.os }}" == linux-* ]]; then
-              export BOOST_TOOLSET=gcc
-              export CXXFLAGS="-static-libstdc++ -static-libgcc"
-            fi
-
-            STATIC_LIBS=1 python setup.py build_ext bdist_wheel --plat-name=$PLAT
-
-            conda deactivate
+          for PYBIN in /opt/python/cp3*/bin; do
+            VERSION=$(${PYBIN}/python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+            echo "Building wheel for Python $VERSION on Linux with plat=${{ matrix.plat }}"
+            export BOOST_TOOLSET=gcc
+            export CXXFLAGS="-static-libstdc++ -static-libgcc"
+            STATIC_LIBS=1 "${PYBIN}/python" setup.py build_ext bdist_wheel --plat-name=${{ matrix.plat }}
           done
 
       - name: Repair wheels for manylinux compliance
@@ -132,15 +88,53 @@ jobs:
             auditwheel repair "$whl" -w dist/
           done
 
-      - name: Remove original x86_64 wheels
-        if: startsWith(matrix.os, 'linux-x86_64')
+      - name: Remove original wheels
+        if: startsWith(matrix.os, 'linux-')
         run: |
-          rm dist/*manylinux2014_x86_64.whl
+          rm dist/*${{ matrix.plat }}.whl
 
-      - name: Remove original arm64 wheels
-        if: startsWith(matrix.os, 'linux-arm64')
+      # macOS build logic
+      - name: Download and install Miniconda
+        if: startsWith(matrix.os, 'macos-')
+        shell: bash
         run: |
-          rm dist/*manylinux2014_aarch64.whl
+          curl -O "https://repo.anaconda.com/miniconda/${{ matrix.miniconda }}"
+          bash "${{ matrix.miniconda }}" -b -p $HOME/miniconda3
+          echo "$HOME/miniconda3/bin" >> "$GITHUB_PATH"
+
+      - name: Initialize conda
+        if: startsWith(matrix.os, 'macos-')
+        shell: bash
+        run: conda init
+
+      - name: Build static dependencies
+        if: startsWith(matrix.os, 'macos-')
+        shell: bash
+        run: |
+          eval "$(conda shell.bash hook)"
+          conda create -n meson -y python=3.13
+          conda activate meson
+          conda install -y meson
+          make download-build-static-deps
+          conda deactivate
+
+      - name: Build wheels (macOS)
+        if: startsWith(matrix.os, 'macos-')
+        shell: bash
+        run: |
+          eval "$(conda shell.bash hook)"
+          for VERSION in $PYTHON_VERSIONS; do
+            if [[ "${{ matrix.arch }}" == arm64 && "$VERSION" == "3.7" ]]; then
+              echo "Skipping Python $VERSION on macOS arm64 because conda does not support it"
+              continue
+            fi
+            conda create -n py$VERSION -y python=$VERSION
+            conda activate py$VERSION
+            PLAT="macosx_${{ matrix.min_macosx_deployment_target }}_${{ matrix.arch }}"
+            echo "Building wheel for Python $VERSION on macOS with plat=$PLAT"
+            STATIC_LIBS=1 python setup.py build_ext bdist_wheel --plat-name=$PLAT
+            conda deactivate
+          done
 
       - uses: actions/upload-artifact@v4
         with:
@@ -149,11 +143,9 @@ jobs:
 
   make-release:
     runs-on: ubuntu-latest
-
     needs:
       - build-sdist
       - build-wheels
-
     steps:
       - uses: actions/download-artifact@v4
         with:
